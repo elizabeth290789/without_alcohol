@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ru.daybyday.app.notifications.NotificationScheduleTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-18T19:23:25" hostname="71c822b72c31" time="0.003">
+  <properties/>
+  <testcase name="aReminderAtTheCurrentTimeSchedulesTomorrowWithoutRepeating" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.002"/>
+  <testcase name="springClockChangeKeepsWallClockTimeInsteadOfAdding24Hours" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.0"/>
+  <testcase name="dailyReminderUsesChosenLocalTime" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.0"/>
+  <testcase name="progressOnlyChecksRunAfterLocalMidnight" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.0"/>
+  <testcase name="autumnClockChangeKeepsWallClockTimeInsteadOfAdding24Hours" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.0"/>
+  <testcase name="nonexistentSpringTimeUsesPlatformZoneGapRules" classname="ru.daybyday.app.notifications.NotificationScheduleTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
