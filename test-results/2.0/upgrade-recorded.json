@@ -1,0 +1,102 @@
+{
+  "scope": "Synthetic migration between APK copies signed with the same temporary key; does not prove compatibility with the original 1.0 APK certificate.",
+  "label": "recorded",
+  "captured_at_utc": "2026-11-10T10:19:09.448663+00:00",
+  "device_today": "2026-11-10",
+  "serial": "emulator-5556",
+  "package": "ru.daybyday.app",
+  "application": {
+    "uid": 10069,
+    "version_name": "2.0",
+    "version_code": 2
+  },
+  "files": {
+    "database": {
+      "present": true,
+      "remote": "/data/user/0/ru.daybyday.app/databases/day_by_day.db",
+      "bytes": 45056,
+      "sha256": "79eefe2dfb8907e205f7ea130f6d1de0deb562246a5231dc394fd15a5234a089",
+      "raw_name": "day_by_day.db"
+    },
+    "wal": {
+      "present": true,
+      "remote": "/data/user/0/ru.daybyday.app/databases/day_by_day.db-wal",
+      "bytes": 24752,
+      "sha256": "392ea663aa0c1f7da5168c5e91b8823b0eb2d41e010cb9516c8e68b884e0259c",
+      "raw_name": "day_by_day.db-wal"
+    },
+    "settings": {
+      "present": true,
+      "remote": "/data/user/0/ru.daybyday.app/files/datastore/settings.preferences_pb",
+      "bytes": 169,
+      "sha256": "c6965f7ce40b7600d94085aec47ad18fdfb173e6874b7c5579500ef0e542a1b7",
+      "raw_name": "settings.preferences_pb"
+    },
+    "notification_state": {
+      "present": true,
+      "remote": "/data/user/0/ru.daybyday.app/files/datastore/notification_state.preferences_pb",
+      "bytes": 48,
+      "sha256": "9b286041fb013392b79f60ea1232601851676574aaa17a60c80e8a936304aaeb",
+      "raw_name": "notification_state.preferences_pb"
+    }
+  },
+  "database": {
+    "user_version": 2,
+    "identity_hash": "ac095c2191b9f7cdf744001b815beba6",
+    "periods": [
+      [
+        11,
+        20707,
+        20728
+      ],
+      [
+        42,
+        20745,
+        20766
+      ],
+      [
+        43,
+        20767,
+        null
+      ]
+    ],
+    "awards": [
+      [
+        1,
+        20708,
+        11
+      ],
+      [
+        3,
+        20710,
+        11
+      ],
+      [
+        7,
+        20714,
+        11
+      ],
+      [
+        14,
+        20721,
+        11
+      ],
+      [
+        21,
+        20728,
+        11
+      ]
+    ],
+    "has_consumption_events": true,
+    "foreign_key_errors": [],
+    "consumption_events": [
+      [
+        1,
+        20766,
+        42,
+        43,
+        null
+      ]
+    ]
+  }
+}

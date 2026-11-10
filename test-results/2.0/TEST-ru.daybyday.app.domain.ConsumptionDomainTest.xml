@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="ru.daybyday.app.domain.ConsumptionDomainTest" tests="28" skipped="0" failures="0" errors="0" timestamp="2026-11-10T10:07:41" hostname="0a41d68a6cd8" time="0.141">
+  <properties/>
+  <testcase name="arbitraryHistoricalInsertionBeforeTheAllowedBoundaryIsRejected" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.055"/>
+  <testcase name="calendarConsumptionTakesPriorityAndRetainsOriginalAwardReceiptDates" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.003"/>
+  <testcase name="recordingOnFirstDayKeepsAnInternalZeroPeriodWithoutInventingProgress" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="adjacentEditBoundsPermitEmptyIntervalsButNeverOverlappingDates" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="yesterdayClosesExactly21DaysAndExcludesTheConsumptionDate" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="missingRowsBrokenLinksAndDuplicateLedgerIdsAreRejected" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.005"/>
+  <testcase name="aOneDayContiguousLegacyPeriodCanBecomeZeroWithoutLosingItsId" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.006"/>
+  <testcase name="clockRollbackLeavesStoredEventsReadableAndReturnsEmptyBounds" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="neitherAnActivePeriodNorPriorDataIsInventedWhenThereIsNoCurrentPeriod" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.018"/>
+  <testcase name="newIdsMustBeUnusedWhenTheyCreateRows" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.003"/>
+  <testcase name="duplicateDateIsANoopBeforeActivePeriodOrNewIdChecks" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="syntheticCoverageAnchorAllowsMovingForwardAndBackWithoutCoverageDrift" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="attachmentDoesNotExtendAnUnknownGapOrChangeUnrelatedHistory" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="attachmentReusesAClosedPeriodEndingAtTheConsumptionDate" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.0"/>
+  <testcase name="duplicateStoredDateSurvivesAClockRollbackWithoutCreatingAnything" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.0"/>
+  <testcase name="todayPreserves21DaysAndStartsTomorrowWithoutClaimingDayOne" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="aPreStartMarkerDoesNotResetAnExistingPositiveCurrentCount" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="aNewFutureDateIsRejectedWithoutChangingInputs" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="preStartAttachmentKeepsTheExistingActiveIdentityAndUsesAnEmptyPrevious" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.018"/>
+  <testcase name="syntheticEightToNineCorrectionDoesNotInventTheEighthAsSoberHistory" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="overlappingIntervalsAndForgedSyntheticAnchorsAreRejected" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="attachmentShortensAContiguousLegacyPeriodSoTheConsumptionDateIsExcluded" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="editingOldDatesCannotCrossAdjacentMarkersOrDuplicateAnotherDate" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="correctingTodayToYesterdayStartsTodayWithZeroCompletedDays" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="noOpEditsRetainTheOriginalObjectsWhenTheDateIsAllowed" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <testcase name="minimumDateIsThePreStartDayOnlyForAnUnlinkedCurrentPeriod" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.002"/>
+  <testcase name="anEarlierEventEditOnlyChangesItsTwoLinkedPeriods" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.005"/>
+  <testcase name="consecutiveConsumptionDatesKeepBothMarkersAndNoEmptyPeriodStatistics" classname="ru.daybyday.app.domain.ConsumptionDomainTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

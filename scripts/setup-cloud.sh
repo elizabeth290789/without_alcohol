@@ -55,15 +55,22 @@ if extra:
 PY
 
 python3 - <<'PY'
-import os, subprocess, urllib.parse
+import os, pathlib, subprocess, urllib.parse
 args = [os.environ['ANDROID_HOME'] + '/cmdline-tools/latest/bin/sdkmanager', '--sdk_root=' + os.environ['ANDROID_HOME']]
 proxy = urllib.parse.urlsplit(os.environ.get('HTTPS_PROXY', ''))
 if proxy.hostname:
     args += ['--proxy=http', '--proxy_host=' + proxy.hostname, '--proxy_port=' + str(proxy.port or 80)]
-subprocess.run(args + ['--licenses'], input='y\n' * 100, text=True, check=True)
+sdk_environment = dict(os.environ)
+trust = pathlib.Path('/etc/ssl/certs/java/cacerts')
+java_options = sdk_environment.get('JAVA_OPTS', '')
+if trust.is_file() and 'javax.net.ssl.trustStore=' not in java_options:
+    sdk_environment['JAVA_OPTS'] = java_options + ' -Djavax.net.ssl.trustStore=' + str(trust)
+subprocess.run(args + ['--licenses'], input='y\n' * 100, text=True, check=True, env=sdk_environment)
 packages = ['platforms;android-35', 'build-tools;35.0.0', 'platform-tools']
 if os.environ.get('WITH_EMULATOR') == '1':
     packages += ['emulator', 'system-images;android-28;default;x86_64']
-subprocess.run(args + packages, check=True)
+subprocess.run(args + packages, check=True, env=sdk_environment)
 PY
-./gradlew --console=plain assembleDebug assembleRelease testDebugUnitTest lintDebug assembleDebugAndroidTest
+if [ "${RUN_BUILD_CHECKS:-1}" = "1" ]; then
+    ./gradlew --console=plain assembleDebug assembleRelease testDebugUnitTest lintDebug assembleDebugAndroidTest
+fi

@@ -14,6 +14,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "periods")
@@ -39,15 +41,49 @@ internal data class AwardEntity(
     val periodId: Long,
 )
 
+@Entity(
+    tableName = "consumption_events",
+    foreignKeys = [
+        ForeignKey(
+            entity = PeriodEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["previousPeriodId"],
+            onDelete = ForeignKey.NO_ACTION,
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
+        ForeignKey(
+            entity = PeriodEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["nextPeriodId"],
+            onDelete = ForeignKey.NO_ACTION,
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
+    ],
+    indices = [
+        Index(value = ["dateEpochDay"], unique = true),
+        Index(value = ["previousPeriodId"], unique = true),
+        Index(value = ["nextPeriodId"], unique = true),
+    ],
+)
+internal data class ConsumptionEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val dateEpochDay: Long,
+    val previousPeriodId: Long,
+    val nextPeriodId: Long,
+    val previousCoverageStartEpochDay: Long? = null,
+)
+
 internal data class PeriodWithAwards(
     @Embedded val period: PeriodEntity,
     @Relation(parentColumn = "id", entityColumn = "periodId")
     val awards: List<AwardEntity>,
+    @Relation(parentColumn = "id", entityColumn = "previousPeriodId")
+    val consumptionEvents: List<ConsumptionEventEntity>,
 )
 
 @Dao
 internal interface TrackerDao {
-    // Room observes both tables and reads every emission in one transaction.
+    // Room observes all three tables and reads each emission in one transaction.
     @Transaction
     @Query("SELECT * FROM periods ORDER BY startEpochDay, id")
     fun observeHistory(): Flow<List<PeriodWithAwards>>
@@ -62,8 +98,14 @@ internal interface TrackerDao {
     @Upsert
     suspend fun upsertAwards(awards: List<AwardEntity>)
 
+    @Upsert
+    suspend fun upsertConsumptionEvents(events: List<ConsumptionEventEntity>)
+
     @Query("DELETE FROM earned_awards WHERE threshold IN (:thresholds)")
     suspend fun deleteAwards(thresholds: List<Long>)
+
+    @Query("DELETE FROM consumption_events")
+    suspend fun clearConsumptionEvents()
 
     @Query("DELETE FROM earned_awards")
     suspend fun clearAwards()
@@ -72,7 +114,33 @@ internal interface TrackerDao {
     suspend fun clearPeriods()
 }
 
-@Database(entities = [PeriodEntity::class, AwardEntity::class], version = 1, exportSchema = true)
+/** Additive migration: old gaps remain unknown, and all original rows stay intact. */
+internal val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS consumption_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                dateEpochDay INTEGER NOT NULL,
+                previousPeriodId INTEGER NOT NULL,
+                nextPeriodId INTEGER NOT NULL,
+                previousCoverageStartEpochDay INTEGER,
+                FOREIGN KEY(previousPeriodId) REFERENCES periods(id) ON UPDATE NO ACTION ON DELETE NO ACTION,
+                FOREIGN KEY(nextPeriodId) REFERENCES periods(id) ON UPDATE NO ACTION ON DELETE NO ACTION
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_consumption_events_dateEpochDay ON consumption_events(dateEpochDay)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_consumption_events_previousPeriodId ON consumption_events(previousPeriodId)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_consumption_events_nextPeriodId ON consumption_events(nextPeriodId)")
+    }
+}
+
+@Database(
+    entities = [PeriodEntity::class, AwardEntity::class, ConsumptionEventEntity::class],
+    version = 2,
+    exportSchema = true,
+)
 internal abstract class TrackerDatabase : RoomDatabase() {
     abstract fun trackerDao(): TrackerDao
 
@@ -84,7 +152,7 @@ internal abstract class TrackerDatabase : RoomDatabase() {
                 context.applicationContext,
                 TrackerDatabase::class.java,
                 "day_by_day.db",
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }

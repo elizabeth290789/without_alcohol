@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Settings
@@ -132,19 +133,41 @@ private fun MainExperience(state: AppUiState, actions: AppActions) {
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route ?: "home"
     val fontScale = LocalDensity.current.fontScale
+    val openEditor: (Long) -> Unit = { id ->
+        nav.navigate("consumption/edit/" + id) { launchSingleTop = true }
+    }
+    val openConsumption: () -> Unit = {
+        val existing = state.consumptionEvents.firstOrNull { it.date == state.today }
+        if (existing != null) openEditor(existing.id)
+        else nav.navigate("consumption") { launchSingleTop = true }
+    }
+    val openExistingFromForm: (Long) -> Unit = { id ->
+        val currentDestinationId = nav.currentDestination?.id
+        nav.navigate("consumption/edit/" + id) {
+            if (currentDestinationId != null) popUpTo(currentDestinationId) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (destinations.any { it.route == route }) {
-                NavigationBar(windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0), containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp, modifier = Modifier.heightIn(min = (80 * fontScale.coerceIn(1f, 1.8f)).dp)) {
-                    destinations.forEach { destination ->
-                        NavigationBarItem(
-                            selected = route == destination.route,
-                            onClick = { nav.navigate(destination.route) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } },
-                            icon = { Icon(destination.icon, contentDescription = null) },
-                            label = { Text(destination.title, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center) },
-                        )
+                Column {
+                    if (route == "home") HomeConsumptionAction(openConsumption, !state.isSaving)
+                    NavigationBar(
+                        windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                        containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp,
+                        modifier = Modifier.heightIn(min = (80 * fontScale.coerceIn(1f, 1.8f)).dp),
+                    ) {
+                        destinations.forEach { destination ->
+                            NavigationBarItem(
+                                selected = route == destination.route,
+                                onClick = { nav.navigate(destination.route) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } },
+                                icon = { Icon(destination.icon, contentDescription = null) },
+                                label = { Text(destination.title, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center) },
+                            )
+                        }
                     }
                 }
             }
@@ -152,17 +175,52 @@ private fun MainExperience(state: AppUiState, actions: AppActions) {
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             NavHost(nav, startDestination = "home", modifier = Modifier.widthIn(max = 720.dp).fillMaxSize()) {
-                composable("home") { HomeScreen(state, onSettings = { nav.navigate("settings") }, onAward = { nav.navigate("award/${Uri.encode(it.id)}") }, onAllAwards = { nav.navigate("awards") }) }
-                composable("awards") { AwardsScreen(state, onAward = { nav.navigate("award/${Uri.encode(it.id)}") }) }
+                composable("home") { HomeScreen(state, onSettings = { nav.navigate("settings") }, onAward = { nav.navigate("award/" + Uri.encode(it.id)) }, onAllAwards = { nav.navigate("awards") }) }
+                composable("awards") { AwardsScreen(state, onAward = { nav.navigate("award/" + Uri.encode(it.id)) }) }
                 composable("calendar") { CalendarScreen(state) }
                 composable("stats") { StatisticsScreen(state) }
-                composable("settings") { SettingsScreen(state, actions, onBack = { nav.popBackStack() }, onNewPeriod = { nav.navigate("new-period") }) }
-                composable("new-period") { NewPeriodScreen(state, actions, onBack = { nav.popBackStack() }) }
+                composable("settings") {
+                    SettingsScreen(
+                        state, actions, onBack = { nav.popBackStack() }, onNewPeriod = openConsumption,
+                        onConsumptionHistory = { nav.navigate("consumption/history") }, onEditConsumption = openEditor,
+                    )
+                }
+                composable("consumption") {
+                    ConsumptionScreen(state, actions, onBack = { nav.popBackStack() }, onOpenExisting = openExistingFromForm)
+                }
+                composable("consumption/history") {
+                    ConsumptionHistoryScreen(state, onBack = { nav.popBackStack() }, onEdit = openEditor, onRecord = openConsumption)
+                }
+                composable("consumption/edit/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { recordEntry ->
+                    ConsumptionScreen(state, actions, onBack = { nav.popBackStack() }, onOpenExisting = openExistingFromForm,
+                        eventId = recordEntry.arguments?.getLong("id"))
+                }
+                // Keep restored version1.0 back stacks, using the new workflow.
+                composable("new-period") {
+                    ConsumptionScreen(state, actions, onBack = { nav.popBackStack() }, onOpenExisting = openExistingFromForm)
+                }
                 composable("award/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) { backStack ->
                     val award = state.achievements.firstOrNull { it.id == backStack.arguments?.getString("id") }
                     if (award != null) AwardDetailScreen(award, state.bestDays, onBack = { nav.popBackStack() })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeConsumptionAction(onClick: () -> Unit, enabled: Boolean) {
+    Surface(color = MaterialTheme.colorScheme.background) {
+        androidx.compose.material3.OutlinedButton(
+            onClick = onClick, enabled = enabled,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp).heightIn(min = 52.dp),
+            shape = RoundedCornerShape(18.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .55f)),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+        ) {
+            Icon(Icons.Outlined.EventNote, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Отметить употребление", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -186,7 +244,12 @@ private fun HomeScreen(state: AppUiState, onSettings: () -> Unit, onAward: (UiAc
             Spacer(Modifier.height(12.dp))
             DayCounter(state)
             Spacer(Modifier.height(10.dp))
-            Text(if (state.currentDay > 0) "Сейчас день ${state.currentDay}" else state.startDate?.let { "Начало периода: ${formatDate(it)}" } ?: "Путь начинается", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+            Text(when {
+                state.startDate == state.today.plusDays(1) -> "Начало завтра"
+                state.currentDay > 0 -> "Сейчас день " + state.currentDay
+                state.startDate != null -> "Начало периода: " + formatDate(state.startDate)
+                else -> "Путь начинается"
+            }, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
             state.startDate?.let { Text("Начало · ${formatDate(it)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         LevelCard(state)
@@ -387,11 +450,15 @@ private fun CelebrationDialog(celebration: UiCelebration, onDismiss: () -> Unit)
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            celebration.achievement?.let { AchievementArt(it, Modifier.size(150.dp).scale(reveal), unlocked = true) }
-                ?: Icon(Icons.Outlined.EmojiEvents, contentDescription = null, modifier = Modifier.size(64.dp).scale(reveal), tint = MaterialTheme.colorScheme.primary)
+            if (celebration.isNeutral) {
+                Icon(Icons.Outlined.EventNote, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            } else {
+                celebration.achievement?.let { AchievementArt(it, Modifier.size(150.dp).scale(reveal), unlocked = true) }
+                    ?: Icon(Icons.Outlined.EmojiEvents, contentDescription = null, modifier = Modifier.size(64.dp).scale(reveal), tint = MaterialTheme.colorScheme.primary)
+            }
         },
         title = { Text(celebration.title, textAlign = TextAlign.Center) },
         text = { Text(celebration.message, textAlign = TextAlign.Center) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Продолжить путь") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(if (celebration.isNeutral) "Понятно" else "Продолжить путь") } },
     )
 }

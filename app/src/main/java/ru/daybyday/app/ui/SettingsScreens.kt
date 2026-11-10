@@ -51,6 +51,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import ru.daybyday.app.BuildConfig.VERSION_NAME
 import java.time.LocalDate
 import java.util.Locale
 
@@ -114,6 +116,7 @@ fun OnboardingScreen(
                 title = if (selectedDate == state.today) "Сегодня" else "Первый день",
                 date = selectedDate,
                 onClick = { showDatePicker = true },
+                enabled = !state.isSaving,
             )
         }
         Spacer(Modifier.height(24.dp))
@@ -122,7 +125,7 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             shape = RoundedCornerShape(18.dp),
-            enabled = !state.isLoading,
+            enabled = !state.isLoading && !state.isSaving,
         ) {
             Text("Начать свой путь", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             Spacer(Modifier.width(12.dp))
@@ -136,7 +139,7 @@ fun OnboardingScreen(
         }
         Spacer(Modifier.height(16.dp))
     }
-    if (showDatePicker) {
+    if (showDatePicker && !state.isSaving) {
         DateSelectionDialog(
             initialDate = selectedDate,
             maxDate = state.today,
@@ -187,41 +190,60 @@ fun SettingsScreen(
     actions: AppActions,
     onBack: () -> Unit,
     onNewPeriod: () -> Unit,
+    onConsumptionHistory: () -> Unit = {},
+    onEditConsumption: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
     var showClearConfirmation by rememberSaveable { mutableStateOf(false) }
     val notifications = state.notifications
+    val controlsEnabled = !state.isSaving
 
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)) {
-        ScreenTitle("Настройки", onBack)
+        ScreenTitle("Настройки", onBack, enabled = controlsEnabled)
         Spacer(Modifier.height(24.dp))
         SectionLabel("ТВОЙ ПУТЬ")
         Spacer(Modifier.height(10.dp))
         SoftCard(modifier = Modifier.fillMaxWidth()) {
             state.startDate?.let { start ->
-                DateValueRow("Дата начала", start, onClick = { showDatePicker = true })
+                val linkedConsumptionId = state.currentStartConsumptionEventId
+                DateValueRow(
+                    title = if (linkedConsumptionId != null) "Начало текущего периода" else "Дата начала",
+                    date = start,
+                    onClick = {
+                        if (linkedConsumptionId != null) onEditConsumption(linkedConsumptionId)
+                        else showDatePicker = true
+                    },
+                    enabled = controlsEnabled,
+                )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "Счётчик обновится с учётом новой даты. Завершённые периоды сохранятся.",
+                    if (linkedConsumptionId != null) {
+                        "Начало периода определяется отметкой об употреблении. Чтобы изменить эту дату, отредактируй отметку."
+                    } else {
+                        "Счётчик обновится с учётом новой даты. Завершённые периоды сохранятся."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.height(16.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onNewPeriod).padding(top = 18.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Начать новый период", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Предыдущий опыт останется с тобой", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            SettingsNavigationRow(
+                title = "Отметить употребление",
+                subtitle = "Сохрани отметку и продолжай свой путь",
+                onClick = onNewPeriod,
+                enabled = controlsEnabled,
+            )
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+            SettingsNavigationRow(
+                title = "История отметок",
+                subtitle = "Сохранено: ${state.consumptionEvents.size}",
+                onClick = onConsumptionHistory,
+                enabled = controlsEnabled,
+            )
         }
         Spacer(Modifier.height(28.dp))
         SectionLabel("УВЕДОМЛЕНИЯ")
@@ -233,9 +255,10 @@ fun SettingsScreen(
                 checked = notifications.dailyEnabled,
                 onCheckedChange = { actions.onNotificationsChange(notifications.copy(dailyEnabled = it)) },
                 icon = Icons.Rounded.NotificationsNone,
+                enabled = controlsEnabled,
             )
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { showTimePicker = true }.padding(vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().alpha(if (controlsEnabled) 1f else .55f).clickable(enabled = controlsEnabled) { showTimePicker = true }.padding(vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Rounded.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
@@ -250,12 +273,14 @@ fun SettingsScreen(
                 subtitle = "Отмечать важные этапы пути",
                 checked = notifications.achievementEnabled,
                 onCheckedChange = { actions.onNotificationsChange(notifications.copy(achievementEnabled = it)) },
+                enabled = controlsEnabled,
             )
             SettingsSwitchRow(
                 title = "Личный рекорд",
                 subtitle = "Сообщать о новом лучшем результате",
                 checked = notifications.recordEnabled,
                 onCheckedChange = { actions.onNotificationsChange(notifications.copy(recordEnabled = it)) },
+                enabled = controlsEnabled,
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
             SettingsSwitchRow(
@@ -264,6 +289,7 @@ fun SettingsScreen(
                 checked = notifications.privateNotifications,
                 onCheckedChange = { actions.onNotificationsChange(notifications.copy(privateNotifications = it)) },
                 icon = Icons.Rounded.Shield,
+                enabled = controlsEnabled,
             )
             if (!state.notificationsAllowed) {
                 Spacer(Modifier.height(8.dp))
@@ -271,7 +297,7 @@ fun SettingsScreen(
                     Text("Уведомления не разрешены", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
                     Spacer(Modifier.height(4.dp))
                     Text("Разреши их в настройках устройства, чтобы получать напоминания.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    TextButton(onClick = actions.onOpenNotificationSettings) { Text("Открыть настройки") }
+                    TextButton(onClick = actions.onOpenNotificationSettings, enabled = controlsEnabled) { Text("Открыть настройки") }
                 }
             }
         }
@@ -279,7 +305,7 @@ fun SettingsScreen(
         SectionLabel("ОФОРМЛЕНИЕ")
         Spacer(Modifier.height(10.dp))
         SoftCard(modifier = Modifier.fillMaxWidth()) {
-            SettingsSwitchRow("Тёмная тема", "Мягкие цвета для спокойного вечера", state.darkTheme, actions.onThemeChange, Icons.Rounded.DarkMode)
+            SettingsSwitchRow("Тёмная тема", "Мягкие цвета для спокойного вечера", state.darkTheme, actions.onThemeChange, Icons.Rounded.DarkMode, enabled = controlsEnabled)
         }
         Spacer(Modifier.height(28.dp))
         SectionLabel("ДАННЫЕ И ПРИВАТНОСТЬ")
@@ -293,16 +319,17 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
             OutlinedButton(
                 onClick = { showClearConfirmation = true },
+                enabled = controlsEnabled,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 shape = RoundedCornerShape(14.dp),
             ) { Text("Удалить все данные") }
         }
         Spacer(Modifier.height(26.dp))
-        Text("День за днём · Версия 1.0", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Text("День за днём · Версия $VERSION_NAME", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(20.dp))
     }
-    if (showDatePicker && state.startDate != null) {
+    if (showDatePicker && state.startDate != null && state.currentStartConsumptionEventId == null && controlsEnabled) {
         DateSelectionDialog(
             initialDate = state.startDate,
             maxDate = state.today,
@@ -311,7 +338,7 @@ fun SettingsScreen(
             onDismiss = { showDatePicker = false },
         )
     }
-    if (showTimePicker) {
+    if (showTimePicker && controlsEnabled) {
         ReminderTimeDialog(
             hour = notifications.dailyHour,
             minute = notifications.dailyMinute,
@@ -326,9 +353,9 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
             title = { Text("Удалить все данные?") },
-            text = { Text("История периодов, достижения и настройки будут удалены с устройства. Восстановить их не получится.") },
+            text = { Text("История периодов, отметки об употреблении, достижения и настройки будут удалены с устройства. Восстановить их не получится.") },
             confirmButton = {
-                TextButton(onClick = { showClearConfirmation = false; actions.onClearAll() }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
+                TextButton(onClick = { showClearConfirmation = false; actions.onClearAll() }, enabled = controlsEnabled, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
             },
             dismissButton = { TextButton(onClick = { showClearConfirmation = false }) { Text("Отмена") } },
         )
@@ -425,9 +452,9 @@ fun NewPeriodScreen(
 }
 
 @Composable
-private fun ScreenTitle(title: String, onBack: () -> Unit) {
+private fun ScreenTitle(title: String, onBack: () -> Unit, enabled: Boolean = true) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        IconButton(onClick = onBack, modifier = Modifier.size(44.dp)) {
+        IconButton(onClick = onBack, enabled = enabled, modifier = Modifier.size(44.dp)) {
             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Назад")
         }
         Spacer(Modifier.width(8.dp))
@@ -436,9 +463,30 @@ private fun ScreenTitle(title: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun DateValueRow(title: String, date: LocalDate, onClick: () -> Unit) {
+private fun SettingsNavigationRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(14.dp),
+        modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else .55f)
+            .clickable(enabled = enabled, onClick = onClick).padding(top = 18.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun DateValueRow(title: String, date: LocalDate, onClick: () -> Unit, enabled: Boolean = true) {
+    Row(
+        modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else .55f).background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(14.dp)).clickable(enabled = enabled, onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
@@ -459,9 +507,10 @@ private fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     icon: ImageVector? = null,
+    enabled: Boolean = true,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange).padding(vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().alpha(if (enabled) 1f else .55f).toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -474,7 +523,7 @@ private fun SettingsSwitchRow(
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.width(12.dp))
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

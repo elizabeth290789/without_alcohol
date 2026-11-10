@@ -17,6 +17,10 @@ data class AppUiState(
     val achievements: List<UiAchievement> = emptyList(),
     val nextAchievement: UiAchievement? = null,
     val periods: List<UiPeriod> = emptyList(),
+    val consumptionEvents: List<UiConsumptionEvent> = emptyList(),
+    val currentStartConsumptionEventId: Long? = null,
+    val consumptionMinDate: LocalDate? = null,
+    val isSaving: Boolean = false,
     val notifications: UiNotificationSettings = UiNotificationSettings(),
     val notificationsAllowed: Boolean = true,
     val darkTheme: Boolean = true,
@@ -48,6 +52,23 @@ data class UiPeriod(
     val fullDays: Long = 0,
 )
 
+data class UiConsumptionEvent(
+    val id: Long,
+    val date: LocalDate,
+    val previousDays: Long,
+    val minDate: LocalDate,
+    val maxDate: LocalDate,
+)
+
+data class UiConsumptionPreview(
+    val previousDays: Long = 0,
+    val newStart: LocalDate? = null,
+    val fullDays: Long = 0,
+    val error: String? = null,
+    val existingEventId: Long? = null,
+    val newPeriod: Boolean = true,
+)
+
 data class UiNotificationSettings(
     val dailyEnabled: Boolean = false,
     val achievementEnabled: Boolean = false,
@@ -61,6 +82,7 @@ data class UiCelebration(
     val title: String,
     val message: String,
     val achievement: UiAchievement? = null,
+    val isNeutral: Boolean = false,
 )
 
 data class AppActions(
@@ -73,4 +95,9 @@ data class AppActions(
     val onDismissError: () -> Unit = {},
     val onDismissCelebration: () -> Unit = {},
     val onOpenNotificationSettings: () -> Unit = {},
+    val onRecordConsumption: (LocalDate) -> Unit = {},
+    val onEditConsumption: (Long, LocalDate) -> Unit = { _, _ -> },
+    val previewConsumption: (Long?, LocalDate) -> UiConsumptionPreview = { _, _ ->
+        UiConsumptionPreview(error = "Не удалось подготовить расчёт")
+    },
 )

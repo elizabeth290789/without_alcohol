@@ -196,7 +196,7 @@ class TrackerDomainTest {
     }
 
     @Test fun invalidAndOverlappingIntervalsAreRejected() {
-        expectInvalid { TrackerDomain.validatePeriods(listOf(Period(1, start, start))) }
+        expectInvalid { TrackerDomain.validatePeriods(listOf(Period(1, start, start.minusDays(1)))) }
         expectInvalid { TrackerDomain.validatePeriods(listOf(Period(1, start), Period(2, start.plusDays(1)))) }
         expectInvalid {
             TrackerDomain.validatePeriods(listOf(Period(1, start, start.plusDays(7)), Period(2, start.plusDays(6))))

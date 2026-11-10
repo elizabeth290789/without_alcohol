@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.EventNote
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material3.AlertDialog
@@ -82,6 +83,9 @@ fun CalendarScreen(state: AppUiState, modifier: Modifier = Modifier) {
     val achievementsByDate = remember(state.achievements) {
         state.achievements.filter { it.unlockedDate != null }.groupBy { it.unlockedDate }
     }
+    val consumptionByDate = remember(state.consumptionEvents) {
+        state.consumptionEvents.associateBy { it.date }
+    }
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -125,6 +129,7 @@ fun CalendarScreen(state: AppUiState, modifier: Modifier = Modifier) {
                             CalendarDay(
                                 date = date,
                                 confirmed = state.isConfirmed(date),
+                                consumed = consumptionByDate.containsKey(date),
                                 today = date == state.today,
                                 earned = achievementsByDate[date].orEmpty().isNotEmpty(),
                                 future = date > state.today,
@@ -141,6 +146,7 @@ fun CalendarScreen(state: AppUiState, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LegendItem(HistoryTeal, "День без алкоголя")
+                LegendItem(HistoryPurple, "Отмечено употребление")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Star, null, Modifier.size(13.dp), tint = HistoryPurple)
                     Spacer(Modifier.width(5.dp))
@@ -177,6 +183,7 @@ fun CalendarScreen(state: AppUiState, modifier: Modifier = Modifier) {
 private fun CalendarDay(
     date: LocalDate,
     confirmed: Boolean,
+    consumed: Boolean,
     today: Boolean,
     earned: Boolean,
     future: Boolean,
@@ -184,11 +191,19 @@ private fun CalendarDay(
     onClick: () -> Unit,
 ) {
     val dayShape = RoundedCornerShape(13.dp)
-    val background = if (confirmed) HistoryTeal.copy(alpha = 0.18f) else Color.Transparent
+    val background = when {
+        consumed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+        confirmed -> HistoryTeal.copy(alpha = 0.18f)
+        else -> Color.Transparent
+    }
     val description = buildString {
         append(historyDate(date))
         if (today) append(", сегодня")
-        append(if (confirmed) ", день без алкоголя подтверждён" else ", нет завершённого дня")
+        append(when {
+            consumed -> ", отмечено употребление, день не засчитывается"
+            confirmed -> ", день без алкоголя подтверждён"
+            else -> ", нет завершённого дня"
+        })
         if (earned) append(", получено достижение")
     }
     Box(
@@ -200,29 +215,45 @@ private fun CalendarDay(
     ) {
         Text(
             date.dayOfMonth.toString(), fontSize = 13.sp, maxLines = 1,
-            fontWeight = if (confirmed || today) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = if (consumed || confirmed || today) FontWeight.Bold else FontWeight.Medium,
             color = when {
+                consumed -> MaterialTheme.colorScheme.primary
                 confirmed -> if (MaterialTheme.colorScheme.background.red < 0.5f) HistoryTeal else Color(0xFF126B5D)
                 today -> HistoryPurple
                 future -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                 else -> MaterialTheme.colorScheme.onSurface
             },
         )
-        if (earned) Icon(Icons.Rounded.Star, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp).size(9.dp), tint = HistoryPurple)
+        if (consumed) Box(Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp)
+            .size(5.dp).background(HistoryPurple, CircleShape))
+        if (earned) Icon(Icons.Rounded.Star, null,
+            Modifier.align(if (consumed) Alignment.BottomStart else Alignment.BottomCenter)
+                .padding(start = if (consumed) 3.dp else 0.dp, bottom = 2.dp).size(9.dp),
+            tint = HistoryPurple)
     }
 }
 
 @Composable
 private fun CalendarDayDialog(date: LocalDate, state: AppUiState, earned: List<UiAchievement>, onDismiss: () -> Unit) {
+    val consumptionEvent = state.consumptionEvents.firstOrNull { it.date == date }
+    val confirmed = state.isConfirmed(date)
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(if (state.isConfirmed(date)) Icons.Rounded.Check else Icons.Rounded.CalendarToday,
-            null, tint = if (state.isConfirmed(date)) HistoryTeal else HistoryPurple) },
+        icon = { Icon(when {
+            consumptionEvent != null -> Icons.Rounded.EventNote
+            confirmed -> Icons.Rounded.Check
+            else -> Icons.Rounded.CalendarToday
+        }, null, tint = when {
+            consumptionEvent != null -> MaterialTheme.colorScheme.primary
+            confirmed -> HistoryTeal
+            else -> HistoryPurple
+        }) },
         title = { Text(historyDate(date), style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(when {
-                    state.isConfirmed(date) -> "Завершённый день без алкоголя. Ещё один шаг в вашу пользу."
+                    consumptionEvent != null -> "В этот день отмечено употребление. Он не входит в дни без алкоголя. История и полученные награды сохраняются."
+                    confirmed -> "Завершённый день без алкоголя. Ещё один шаг в вашу пользу."
                     date == state.today && state.startDate != null && date >= state.startDate -> "Сегодня путь продолжается. Этот день будет засчитан после полуночи."
                     date > state.today -> "Этот день ещё впереди. Двигайтесь в своём темпе."
                     else -> "За этот день нет записи о завершённом периоде."
@@ -437,10 +468,11 @@ private fun ActivityHeatmap(state: AppUiState) {
     }
 }
 
-private fun AppUiState.isConfirmed(date: LocalDate): Boolean = !date.isAfter(today) && periods.any { period ->
-    val end = period.endInclusive ?: today.minusDays(1)
-    !date.isBefore(period.start) && !date.isAfter(end)
-}
+private fun AppUiState.isConfirmed(date: LocalDate): Boolean =
+    !date.isAfter(today) && consumptionEvents.none { it.date == date } && periods.any { period ->
+        val end = period.endInclusive ?: today.minusDays(1)
+        !date.isBefore(period.start) && !date.isAfter(end)
+    }
 
 @Composable
 private fun HistoryHeading(title: String, subtitle: String) {

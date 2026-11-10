@@ -1,0 +1,6 @@
+PASS: actual schema 1→2; exact periods, original awards and settings retained; events empty; foreign keys valid.
+Notification-state bytes: unchanged
+Synthetic migration between APK copies signed with the same temporary key; does not prove compatibility with the original 1.0 APK certificate.
+PASS: UI yesterday confirmation retained 21 completed days; next period starts today at zero.
+PASS: UI correction of the same event to today retained IDs, awards and settings; next start tomorrow at zero.
+PASS: result persisted after process restart; future start does not show current day 1.

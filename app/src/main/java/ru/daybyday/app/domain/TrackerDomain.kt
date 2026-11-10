@@ -4,7 +4,7 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
-/** A closed interval contains [start, endExclusive); null means the current period. */
+/** A closed interval contains [start, endExclusive); empty intervals retain event links. */
 data class Period(
     val id: Long,
     val start: LocalDate,
@@ -43,12 +43,13 @@ data class Progress(
     val unlockedCount: Int,
 )
 
-enum class DayStatus { UNKNOWN, CONFIRMED, CURRENT, FUTURE }
+enum class DayStatus { UNKNOWN, CONFIRMED, CURRENT, FUTURE, CONSUMPTION }
 
 data class CalendarDay(
     val date: LocalDate,
     val status: DayStatus,
     val awards: List<Award>,
+    val event: ConsumptionEvent? = null,
 )
 
 /** Date-only rules: no elapsed milliseconds, timers, time zones, Android, or persistence. */
@@ -114,7 +115,7 @@ object TrackerDomain {
             currentDay = if (current != null && !today.isBefore(current.start)) days + 1 else 0,
             bestDays = lengths.maxOrNull() ?: 0,
             totalDays = lengths.sum(),
-            completedPeriods = periods.count { it.endExclusive != null },
+            completedPeriods = periods.count { it.endExclusive != null && completedDays(it, today) > 0 },
             level = level,
             nextAchievement = next,
             daysToNext = next?.let { (it.threshold - days).coerceAtLeast(0) },
@@ -204,9 +205,13 @@ object TrackerDomain {
             "Идентификаторы периодов должны быть уникальны"
         }
         require(periods.count { it.endExclusive == null } <= 1) { "Текущий период может быть только один" }
-        val ordered = periods.sortedBy { it.start }
+        val ordered = periods.sortedWith(
+            compareBy<Period> { it.start }
+                .thenBy { it.endExclusive ?: LocalDate.MAX }
+                .thenBy { it.id },
+        )
         ordered.forEach { period ->
-            require(period.endExclusive == null || period.endExclusive.isAfter(period.start)) {
+            require(period.endExclusive == null || !period.endExclusive.isBefore(period.start)) {
                 "Дата завершения должна быть не раньше даты начала"
             }
         }
@@ -222,17 +227,20 @@ object TrackerDomain {
         periods: List<Period>,
         awards: List<Award>,
         today: LocalDate,
+        events: List<ConsumptionEvent> = emptyList(),
     ): CalendarDay {
+        val event = events.firstOrNull { it.date == date }
         val matching = periods.firstOrNull {
             !date.isBefore(it.start) && (it.endExclusive == null || date.isBefore(it.endExclusive))
         }
         val status = when {
+            event != null -> DayStatus.CONSUMPTION
             date.isAfter(today) -> DayStatus.FUTURE
             matching == null -> DayStatus.UNKNOWN
             date == today && matching.endExclusive == null -> DayStatus.CURRENT
             else -> DayStatus.CONFIRMED
         }
-        return CalendarDay(date, status, awards.filter { it.date == date })
+        return CalendarDay(date, status, awards.filter { it.date == date }, event)
     }
 
     fun dayWord(count: Long): String {
